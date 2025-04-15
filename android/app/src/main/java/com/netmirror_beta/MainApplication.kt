@@ -11,7 +11,7 @@ import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
 import com.facebook.react.defaults.DefaultReactNativeHost
 import com.facebook.react.soloader.OpenSourceMergedSoMapping
 import com.facebook.soloader.SoLoader
-import com.swmansion.gesturehandler.react.ReactNativeGestureHandlerPackage // Import Gesture Handler package
+
 
 class MainApplication : Application(), ReactApplication {
 
@@ -19,8 +19,7 @@ class MainApplication : Application(), ReactApplication {
       object : DefaultReactNativeHost(this) {
         override fun getPackages(): List<ReactPackage> =
             PackageList(this).packages.apply {
-              // Add ReactNativeGestureHandlerPackage manually (in case autolinking fails)
-              add(ReactNativeGestureHandlerPackage())
+              // You can manually add packages here if needed
             }
 
         override fun getJSMainModuleName(): String = "index"
@@ -29,6 +28,7 @@ class MainApplication : Application(), ReactApplication {
 
         override val isNewArchEnabled: Boolean = BuildConfig.IS_NEW_ARCHITECTURE_ENABLED
         override val isHermesEnabled: Boolean = BuildConfig.IS_HERMES_ENABLED
+
       }
 
   override val reactHost: ReactHost
@@ -38,11 +38,7 @@ class MainApplication : Application(), ReactApplication {
     super.onCreate()
     SoLoader.init(this, OpenSourceMergedSoMapping)
     if (BuildConfig.IS_NEW_ARCHITECTURE_ENABLED) {
-      // If you opted-in for the New Architecture, we load the native entry point for this app.
       load()
     }
-
-    // Initialize the Gesture Handler module (just to be sure)
-    com.swmansion.gesturehandler.react.GestureHandlerModule.init()
   }
 }

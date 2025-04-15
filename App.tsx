@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import {
   ActivityIndicator,
   StatusBar,
@@ -12,15 +12,28 @@ import { WebView } from 'react-native-webview';
 import { decode as atob } from 'base-64';
 import BottomSheet from '@gorhom/bottom-sheet';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import NetInfo from '@react-native-community/netinfo';
+
 
 const App: React.FC = () => {
   const [isLoaded, setIsLoaded] = useState(false);
   const [webviewUrl, setWebviewUrl] = useState<string | null>(null);
   const [hasError, setHasError] = useState(false);
   const [isFetching, setIsFetching] = useState(true);
+  const [isConnected, setIsConnected] = useState(true);
+
 
   const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ['25%', '50%'], []);
+  const snapPoints = useMemo(() => ['30%'], []);
+
+  useEffect(() => {
+    const unsubscribe = NetInfo.addEventListener(state => {
+      setIsConnected(state.isConnected && state.isInternetReachable);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
 
   const loadData = useCallback(async () => {
     setIsFetching(true);
@@ -52,10 +65,13 @@ const App: React.FC = () => {
     loadData();
   }, [loadData]);
 
-  const openSheet = () => bottomSheetRef.current?.expand();
+
+  const openBottomSheet = () => {
+    bottomSheetRef.current?.expand();
+  }
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={styles.container}>
       <StatusBar hidden />
       <AnimatedSplash
         translucent
@@ -65,40 +81,52 @@ const App: React.FC = () => {
         logoHeight={110}
         logoWidth={110}
       >
-        {isFetching ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#00ffcc" />
-            <Text style={styles.loadingText}>Loading...</Text>
+        {!isConnected ? (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorEmoji}>📡</Text>
+            <Text style={styles.errorText}>No Internet Connection</Text>
+            <Text style={styles.subText}>Please check your network and try again.</Text>
+            <TouchableOpacity onPress={loadData} style={styles.retryButton}>
+              <Text style={styles.retryText}>🔄 Retry</Text>
+            </TouchableOpacity>
           </View>
         ) : hasError ? (
           <View style={styles.errorContainer}>
             <Text style={styles.errorEmoji}>⚠️</Text>
             <Text style={styles.errorText}>Something Went Wrong</Text>
+            <Text style={styles.subText}>We couldn't load the content. Try again later.</Text>
             <TouchableOpacity onPress={loadData} style={styles.retryButton}>
-              <Text style={styles.retryText}>↻  Retry</Text>
+              <Text style={styles.retryText}>↻ Retry</Text>
             </TouchableOpacity>
           </View>
         ) : webviewUrl ? (
           <>
             <WebView source={{ uri: webviewUrl }} style={{ flex: 1 }} />
-            <TouchableOpacity style={styles.floatingButton} onPress={openSheet}>
+            <TouchableOpacity style={styles.floatingButton} onPress={openBottomSheet}>
               <Text style={styles.floatingButtonText}>⚙️</Text>
             </TouchableOpacity>
 
             <BottomSheet
               ref={bottomSheetRef}
-              snapPoints={snapPoints}
               index={-1}
+              snapPoints={snapPoints}
+              enablePanDownToClose={true}
               backgroundStyle={{ backgroundColor: '#fff' }}
               handleIndicatorStyle={{ backgroundColor: '#ccc' }}
             >
-              <View style={styles.sheetContent}>
-                <Text style={styles.sheetTitle}>Settings</Text>
+              <View style={styles.bottomSheet}>
+                <Text style={styles.sheetTitle}>⚙️ Settings</Text>
                 <TouchableOpacity style={styles.sheetOption}>
-                  <Text>Clear Cache</Text>
+                  <Text style={styles.sheetOptionText}>Clear Cache</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.sheetOption}>
-                  <Text>Reload</Text>
+                  <Text style={styles.sheetOptionText}>Reload Page</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.sheetOption}
+                  onPress={() => bottomSheetRef.current?.close()}
+                >
+                  <Text style={styles.sheetOptionText}>Close</Text>
                 </TouchableOpacity>
               </View>
             </BottomSheet>
@@ -110,6 +138,7 @@ const App: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  container: { flex: 1, backgroundColor: '#000' },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -118,19 +147,13 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 10,
     color: '#00ffcc',
+    fontSize: 16,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  errorEmoji: {
-    fontSize: 50,
-  },
-  errorText: {
-    color: '#ff4d4d',
-    fontSize: 18,
-    marginBottom: 15,
+    paddingHorizontal: 20,
   },
   retryButton: {
     backgroundColor: '#00ffcc',
@@ -138,14 +161,11 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 8,
   },
-  retryText: {
-    fontSize: 16,
-    color: '#000',
-  },
+  retryText: { fontSize: 16, color: '#000', fontWeight: 'bold' },
   floatingButton: {
     position: 'absolute',
-    bottom: 30,
-    right: 20,
+    bottom: 90,
+    right: 5,
     backgroundColor: '#00ffcc',
     width: 50,
     height: 50,
@@ -154,21 +174,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     elevation: 8,
   },
-  floatingButtonText: {
-    fontSize: 22,
-  },
-  sheetContent: {
+  floatingButtonText: { fontSize: 24 },
+  bottomSheet: {
     flex: 1,
     padding: 20,
   },
   sheetTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     marginBottom: 15,
   },
   sheetOption: {
-    paddingVertical: 10,
+    paddingVertical: 12,
   },
+  sheetOptionText: {
+    fontSize: 16,
+  },
+  subText: {
+    fontSize: 14,
+    color: '#888',
+    marginBottom: 20,
+    textAlign: 'center',
+    paddingHorizontal: 10,
+  },
+  errorEmoji: { fontSize: 60, marginBottom: 15 },
+  errorText: {
+    color: '#ff4d4d',
+    fontSize: 20,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+    
 });
 
 export default App;
